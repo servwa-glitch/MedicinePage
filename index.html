@@ -4,119 +4,640 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>藥品庫存查詢</title>
-  <link rel="stylesheet" href="css/style.css">
+<style>
+:root {
+  --primary: #1d4ed8;
+  --primary-light: #3b82f6;
+  --primary-bg: #eff6ff;
+  --bg: #f1f5f9;
+  --card: #ffffff;
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --border: #e2e8f0;
+  --green: #15803d;
+  --green-bg: #dcfce7;
+  --red: #b91c1c;
+  --red-bg: #fee2e2;
+  --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.12);
+  --radius: 12px;
+  --header-h: 56px;
+  --search-h: 60px;
+  --stats-h: 36px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { height: 100%; }
+body {
+  font-family: -apple-system, 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100%;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+button { cursor: pointer; border: none; background: none; font-family: inherit; }
+ul { list-style: none; }
+.hidden { display: none !important; }
+
+/* Header */
+.header {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: var(--header-h);
+  background: var(--primary);
+  color: #fff;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px;
+  z-index: 100;
+  box-shadow: var(--shadow-md);
+}
+.header-left { display: flex; align-items: center; gap: 10px; }
+.header-icon { font-size: 22px; }
+.header-title { font-size: 18px; font-weight: 700; }
+.icon-btn {
+  width: 38px; height: 38px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(255,255,255,.9); transition: background .15s;
+}
+.icon-btn:hover { background: rgba(255,255,255,.15); }
+.icon-btn.spinning svg { animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Search */
+.search-section {
+  position: fixed; top: var(--header-h); left: 0; right: 0;
+  padding: 10px 12px 0;
+  background: var(--bg); z-index: 90;
+}
+.search-box {
+  display: flex; align-items: center;
+  background: var(--card); border-radius: 12px;
+  box-shadow: var(--shadow); padding: 0 12px; height: 44px; gap: 8px;
+}
+.search-icon { color: var(--text-muted); flex-shrink: 0; }
+#searchInput {
+  flex: 1; border: none; outline: none;
+  font-size: 16px; color: var(--text); background: transparent;
+}
+#searchInput::placeholder { color: #94a3b8; }
+.clear-btn {
+  color: var(--text-muted); font-size: 14px;
+  width: 24px; height: 24px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--border); flex-shrink: 0;
+}
+
+/* Suggestions */
+.suggestions {
+  background: var(--card); border-radius: 10px;
+  box-shadow: var(--shadow-md); margin-top: 4px;
+  max-height: 240px; overflow-y: auto; -webkit-overflow-scrolling: touch;
+}
+.suggestion-item {
+  padding: 12px 16px; font-size: 15px;
+  border-bottom: 1px solid var(--border); cursor: pointer;
+}
+.suggestion-item:last-child { border-bottom: none; }
+.suggestion-item:active { background: var(--primary-bg); }
+.suggestion-item mark { background: none; color: var(--primary); font-weight: 700; }
+
+/* Stats */
+.stats-bar {
+  position: fixed;
+  top: calc(var(--header-h) + var(--search-h));
+  left: 0; right: 0; height: var(--stats-h);
+  display: flex; align-items: center; padding: 0 16px;
+  font-size: 12px; color: var(--text-muted);
+  background: var(--bg); border-bottom: 1px solid var(--border); z-index: 89;
+}
+
+/* Content */
+.content {
+  margin-top: calc(var(--header-h) + var(--search-h) + var(--stats-h));
+  padding: 10px 10px 90px;
+}
+
+/* States */
+.center-state {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 14px; padding: 60px 20px;
+  color: var(--text-muted);
+}
+.spinner {
+  width: 36px; height: 36px;
+  border: 3px solid var(--border); border-top-color: var(--primary);
+  border-radius: 50%; animation: spin .8s linear infinite;
+}
+.empty-icon { font-size: 42px; }
+
+/* Cards */
+.item-list { display: flex; flex-direction: column; gap: 8px; }
+.item-card {
+  background: var(--card); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 14px 16px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.item-name { font-size: 16px; font-weight: 600; color: var(--text); line-height: 1.3; }
+.item-price { font-size: 13px; color: var(--text-muted); margin-top: 3px; }
+.item-right { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; }
+.stock-badge {
+  font-size: 13px; font-weight: 700;
+  padding: 3px 10px; border-radius: 20px; letter-spacing: .5px;
+}
+.stock-yes { background: var(--green-bg); color: var(--green); }
+.stock-no  { background: var(--red-bg);   color: var(--red); }
+.stock-unknown { background: #f1f5f9; color: #64748b; }
+
+/* FAB */
+.fab {
+  position: fixed; bottom: 24px; right: 20px;
+  width: 58px; height: 58px; border-radius: 50%;
+  background: var(--primary); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 16px rgba(29,78,216,.45); z-index: 150;
+  transition: transform .15s;
+}
+.fab:active { transform: scale(.93); }
+
+/* Modal */
+.modal {
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; align-items: flex-end;
+}
+.modal-backdrop {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,.45); backdrop-filter: blur(2px);
+}
+.modal-sheet {
+  position: relative; background: var(--card);
+  border-radius: 20px 20px 0 0; width: 100%;
+  max-height: 92vh; overflow-y: auto;
+  animation: slideUp .25s ease-out;
+  padding-bottom: 20px;
+}
+@keyframes slideUp {
+  from { transform: translateY(30%); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
+}
+.modal-handle {
+  width: 40px; height: 4px; background: var(--border);
+  border-radius: 2px; margin: 12px auto 0;
+}
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 20px 0;
+}
+.modal-title { font-size: 18px; font-weight: 700; }
+.close-btn {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--bg); font-size: 14px; color: var(--text-muted);
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-body { padding: 16px 16px 20px; }
+
+/* Drop zone */
+.drop-zone {
+  background: var(--bg); border: 2px dashed var(--border);
+  border-radius: var(--radius); min-height: 160px;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; margin-bottom: 12px;
+}
+.drop-hint {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 10px; color: var(--text-muted); font-size: 14px; padding: 20px; text-align: center;
+}
+.img-preview { width: 100%; max-height: 260px; object-fit: contain; }
+
+/* Upload row */
+.upload-row { display: flex; gap: 8px; margin-bottom: 16px; }
+.upload-btn {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  gap: 6px; height: 42px; border-radius: 10px;
+  font-size: 14px; font-weight: 600;
+  border: 2px solid var(--border); color: var(--text); background: var(--card);
+}
+.analyze-btn {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  gap: 6px; height: 42px; border-radius: 10px;
+  font-size: 14px; font-weight: 700;
+  background: var(--primary); color: #fff;
+}
+.analyze-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* Results */
+.analysis-section-title {
+  font-size: 13px; font-weight: 700; color: var(--text-muted);
+  margin: 12px 0 6px; letter-spacing: .5px;
+}
+.result-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 10px; margin-bottom: 6px; font-size: 15px;
+}
+.result-item.found    { background: var(--green-bg); }
+.result-item.notfound { background: var(--red-bg); }
+.result-check { font-size: 18px; flex-shrink: 0; width: 24px; text-align: center; }
+.result-name { flex: 1; font-weight: 600; }
+.result-stock.yes { color: var(--green); font-weight: 700; }
+.result-stock.no  { color: var(--red);   font-weight: 700; }
+.analyzing-msg {
+  text-align: center; padding: 24px; color: var(--text-muted);
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+}
+.error-msg {
+  background: var(--red-bg); color: var(--red);
+  padding: 14px; border-radius: 10px; font-size: 14px; line-height: 1.6;
+}
+.warn-msg {
+  background: #fef9c3; color: #854d0e;
+  padding: 14px; border-radius: 10px; font-size: 14px; line-height: 1.6;
+}
+@media (min-width: 640px) {
+  .modal { align-items: center; }
+  .modal-sheet { border-radius: 20px; max-width: 560px; margin: auto; max-height: 85vh; }
+  .modal-handle { display: none; }
+  .content { padding: 14px 16px 90px; }
+}
+</style>
 </head>
 <body>
 
-  <!-- Header -->
-  <header class="header">
-    <div class="header-left">
-      <span class="header-icon">💊</span>
-      <span class="header-title">藥品庫存查詢</span>
-    </div>
-    <button id="btnRefresh" class="icon-btn" title="重新整理">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-        <path d="M3 3v5h5"/>
-      </svg>
-    </button>
-  </header>
-
-  <!-- Search Bar -->
-  <div class="search-section">
-    <div class="search-box">
-      <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-      </svg>
-      <input type="text" id="searchInput" placeholder="搜尋藥品名稱..." autocomplete="off" autocorrect="off" spellcheck="false">
-      <button id="btnClear" class="clear-btn hidden">✕</button>
-    </div>
-    <div id="suggestions" class="suggestions hidden"></div>
+<header class="header">
+  <div class="header-left">
+    <span class="header-icon">💊</span>
+    <span class="header-title">藥品庫存查詢</span>
   </div>
-
-  <!-- Stats -->
-  <div id="statsBar" class="stats-bar">
-    <span id="statsText">載入中...</span>
-  </div>
-
-  <!-- Main content -->
-  <main class="content" id="content">
-    <div id="loadingState" class="center-state">
-      <div class="spinner"></div>
-      <p>載入資料中...</p>
-    </div>
-    <div id="emptyState" class="center-state hidden">
-      <div class="empty-icon">🔍</div>
-      <p>找不到符合的藥品</p>
-    </div>
-    <ul id="itemList" class="item-list hidden"></ul>
-  </main>
-
-  <!-- FAB: Image Analysis -->
-  <button id="btnFab" class="fab" title="圖片查詢">
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-      <circle cx="8.5" cy="8.5" r="1.5"/>
-      <polyline points="21 15 16 10 5 21"/>
+  <button id="btnRefresh" class="icon-btn" title="重新整理">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+      <path d="M3 3v5h5"/>
     </svg>
   </button>
+</header>
 
-  <!-- Image Analysis Modal -->
-  <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
-    <div class="modal-backdrop" id="modalBackdrop"></div>
-    <div class="modal-sheet">
-      <div class="modal-handle"></div>
-      <div class="modal-header">
-        <h2 class="modal-title">📷 圖片查詢</h2>
-        <button id="btnCloseModal" class="close-btn">✕</button>
-      </div>
-      <div class="modal-body">
-        <!-- Image Preview -->
-        <div id="dropZone" class="drop-zone">
-          <div id="dropHint" class="drop-hint">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-              <circle cx="8.5" cy="8.5" r="1.5"/>
-              <polyline points="21 15 16 10 5 21"/>
-            </svg>
-            <p>點選下方按鈕上傳圖片</p>
-          </div>
-          <img id="imgPreview" class="img-preview hidden" alt="預覽">
+<div class="search-section">
+  <div class="search-box">
+    <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+    </svg>
+    <input type="text" id="searchInput" placeholder="搜尋藥品名稱..." autocomplete="off" autocorrect="off" spellcheck="false">
+    <button id="btnClear" class="clear-btn hidden">✕</button>
+  </div>
+  <div id="suggestions" class="suggestions hidden"></div>
+</div>
+
+<div class="stats-bar"><span id="statsText">載入中...</span></div>
+
+<main class="content">
+  <div id="loadingState" class="center-state">
+    <div class="spinner"></div><p>載入資料中...</p>
+  </div>
+  <div id="emptyState" class="center-state hidden">
+    <div class="empty-icon">🔍</div><p>找不到符合的藥品</p>
+  </div>
+  <ul id="itemList" class="item-list hidden"></ul>
+</main>
+
+<button id="btnFab" class="fab" title="圖片查詢">
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+    <circle cx="8.5" cy="8.5" r="1.5"/>
+    <polyline points="21 15 16 10 5 21"/>
+  </svg>
+</button>
+
+<div id="modal" class="modal hidden">
+  <div class="modal-backdrop" id="modalBackdrop"></div>
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <h2 class="modal-title">📷 圖片查詢</h2>
+      <button id="btnCloseModal" class="close-btn">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="dropZone" class="drop-zone">
+        <div id="dropHint" class="drop-hint">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+          <p>點選下方按鈕上傳圖片</p>
         </div>
-
-        <!-- Upload Buttons -->
-        <div class="upload-row">
-          <input type="file" id="fileInput" accept="image/*" class="hidden">
-          <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
-          <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-            </svg>
-            選擇圖片
-          </button>
-          <button class="upload-btn" onclick="document.getElementById('cameraInput').click()">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-              <circle cx="12" cy="13" r="4"/>
-            </svg>
-            拍照
-          </button>
-          <button id="btnAnalyze" class="analyze-btn" disabled>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/>
-            </svg>
-            分析圖片
-          </button>
-        </div>
-
-        <!-- Analysis Result -->
-        <div id="analysisResult" class="analysis-result hidden"></div>
+        <img id="imgPreview" class="img-preview hidden" alt="預覽">
       </div>
+      <div class="upload-row">
+        <input type="file" id="fileInput" accept="image/*" class="hidden">
+        <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
+        <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          選擇圖片
+        </button>
+        <button class="upload-btn" onclick="document.getElementById('cameraInput').click()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+          拍照
+        </button>
+        <button id="btnAnalyze" class="analyze-btn" disabled>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/>
+          </svg>
+          分析
+        </button>
+      </div>
+      <div id="analysisResult"></div>
     </div>
   </div>
+</div>
 
-  <script src="js/app.js"></script>
+<script>
+const SHEET_ID  = '1ekYUBtuQNjLB0RpWGCPJN7409sL74tqT36NfzUIM6o4';
+const SHEET_GID = '1658780928';
+const WORKER_URL = ''; // 填入 Cloudflare Worker URL 後圖片分析才能用
+
+let allItems = [], filteredItems = [], selectedFile = null;
+
+const $ = id => document.getElementById(id);
+const searchInput    = $('searchInput');
+const btnClear       = $('btnClear');
+const btnRefresh     = $('btnRefresh');
+const suggestions    = $('suggestions');
+const statsText      = $('statsText');
+const loadingState   = $('loadingState');
+const emptyState     = $('emptyState');
+const itemList       = $('itemList');
+const modal          = $('modal');
+const modalBackdrop  = $('modalBackdrop');
+const btnCloseModal  = $('btnCloseModal');
+const dropHint       = $('dropHint');
+const imgPreview     = $('imgPreview');
+const fileInput      = $('fileInput');
+const cameraInput    = $('cameraInput');
+const btnAnalyze     = $('btnAnalyze');
+const analysisResult = $('analysisResult');
+
+document.addEventListener('DOMContentLoaded', () => { loadData(); bindEvents(); });
+
+async function loadData() {
+  showLoading(true);
+  btnRefresh.classList.add('spinning');
+  try {
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${SHEET_GID}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const csv = await res.text();
+    if (csv.trim().startsWith('<')) throw new Error('Google Sheets 未設為公開，請至試算表 → 共用 → 設為「任何人都能檢視」');
+    const { columns, rows } = parseCsv(csv);
+    allItems = flattenData(columns, rows);
+    filteredItems = [...allItems];
+    renderList(filteredItems);
+    statsText.textContent = `共 ${allItems.length} 項藥品`;
+  } catch (e) {
+    loadingState.innerHTML = `<div class="empty-icon">⚠️</div><p style="color:#b91c1c;font-size:14px;text-align:center;line-height:1.6">${e.message}</p>`;
+    showLoading(true);
+    statsText.textContent = '載入失敗';
+  } finally {
+    btnRefresh.classList.remove('spinning');
+  }
+}
+
+function parseCsv(csv) {
+  const lines = csv.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  if (!lines.length) return { columns: [], rows: [] };
+  const columns = deduplicateColumns(parseCsvLine(lines[0]));
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const vals = parseCsvLine(lines[i]);
+    const row = {};
+    columns.forEach((col, j) => row[col] = (vals[j] ?? '').trim());
+    if (Object.values(row).every(v => !v)) continue;
+    rows.push(row);
+  }
+  return { columns, rows };
+}
+
+function parseCsvLine(line) {
+  const result = []; let inQ = false, cur = '';
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQ) {
+      if (c === '"') { if (line[i+1] === '"') { cur += '"'; i++; } else inQ = false; }
+      else cur += c;
+    } else {
+      if (c === '"') inQ = true;
+      else if (c === ',') { result.push(cur.trim()); cur = ''; }
+      else cur += c;
+    }
+  }
+  result.push(cur.trim());
+  return result;
+}
+
+function deduplicateColumns(cols) {
+  const seen = {}; let emptyIdx = 0;
+  return cols.map(col => {
+    const name = col.trim() || `欄位${++emptyIdx}`;
+    const count = seen[name] || 0;
+    seen[name] = count + 1;
+    return count === 0 ? name : `${name}_${count + 1}`;
+  });
+}
+
+function flattenData(columns, rows) {
+  const nameCols  = columns.filter(c => c.includes('品') && c.includes('名'));
+  const stockCols = columns.filter(c => c.includes('庫') && !nameCols.includes(c));
+  const priceCols = columns.filter(c => c.includes('價') && !nameCols.includes(c));
+  const groups = Math.max(nameCols.length, stockCols.length, priceCols.length);
+  const result = []; const seen = new Set();
+  for (let g = 0; g < groups; g++) {
+    const nc = nameCols[g] ?? '', sc = stockCols[g] ?? '', pc = priceCols[g] ?? '';
+    for (const row of rows) {
+      const name  = (row[nc] ?? '').trim();
+      const stock = (row[sc] ?? '').trim();
+      const price = (row[pc] ?? '').trim();
+      if (!name || isSectionHeader(name)) continue;
+      if (!stock && !price) continue;
+      if (seen.has(name)) continue;
+      seen.add(name);
+      result.push({ name, stock, price });
+    }
+  }
+  return result;
+}
+
+function isSectionHeader(n) {
+  return n.includes('劃') || n.includes('★') || n.includes('製表') || n.includes('科中') || (n.includes('~') && n.includes('劃'));
+}
+
+function renderList(items) {
+  showLoading(false);
+  if (!items.length) { emptyState.classList.remove('hidden'); itemList.classList.add('hidden'); return; }
+  emptyState.classList.add('hidden'); itemList.classList.remove('hidden');
+  const frag = document.createDocumentFragment();
+  items.forEach(item => {
+    const li = document.createElement('li');
+    li.className = 'item-card';
+    const sc = getStockClass(item.stock);
+    li.innerHTML = `
+      <div>
+        <div class="item-name">${esc(item.name)}</div>
+        ${item.price ? `<div class="item-price">💰 ${esc(item.price)}</div>` : ''}
+      </div>
+      <div class="item-right">
+        <span class="stock-badge ${sc}">${esc(item.stock || '—')}</span>
+      </div>`;
+    frag.appendChild(li);
+  });
+  itemList.innerHTML = ''; itemList.appendChild(frag);
+}
+
+function getStockClass(s) {
+  if (!s) return 'stock-unknown';
+  if (s.includes('有') || s === '✓') return 'stock-yes';
+  if (s.includes('無') || s.includes('缺') || s === '✗') return 'stock-no';
+  return 'stock-unknown';
+}
+
+function showLoading(on) {
+  loadingState.classList.toggle('hidden', !on);
+}
+
+function filterItems(kw) {
+  kw = kw.trim();
+  filteredItems = kw ? allItems.filter(i => i.name.includes(kw)) : [...allItems];
+  renderList(filteredItems);
+  statsText.textContent = kw
+    ? `搜尋「${kw}」→ ${filteredItems.length} 筆 / 共 ${allItems.length} 項`
+    : `共 ${allItems.length} 項藥品`;
+}
+
+function showSuggestions(kw) {
+  if (!kw.trim() || !allItems.length) { suggestions.classList.add('hidden'); return; }
+  const matches = allItems.filter(i => i.name.includes(kw)).slice(0, 12);
+  if (!matches.length) { suggestions.classList.add('hidden'); return; }
+  suggestions.innerHTML = matches.map(i => {
+    const hi = i.name.replace(new RegExp(`(${escRe(kw)})`, 'g'), '<mark>$1</mark>');
+    return `<div class="suggestion-item" data-name="${esc(i.name)}">${hi}</div>`;
+  }).join('');
+  suggestions.classList.remove('hidden');
+}
+
+function bindEvents() {
+  searchInput.addEventListener('input', e => {
+    const kw = e.target.value;
+    btnClear.classList.toggle('hidden', !kw);
+    filterItems(kw); showSuggestions(kw);
+  });
+  searchInput.addEventListener('focus', e => { if (e.target.value) showSuggestions(e.target.value); });
+  searchInput.addEventListener('blur', () => setTimeout(() => suggestions.classList.add('hidden'), 150));
+  suggestions.addEventListener('click', e => {
+    const item = e.target.closest('.suggestion-item');
+    if (!item) return;
+    searchInput.value = item.dataset.name;
+    btnClear.classList.remove('hidden');
+    filterItems(item.dataset.name);
+    suggestions.classList.add('hidden');
+  });
+  btnClear.addEventListener('click', () => {
+    searchInput.value = ''; btnClear.classList.add('hidden');
+    filterItems(''); suggestions.classList.add('hidden'); searchInput.focus();
+  });
+  btnRefresh.addEventListener('click', loadData);
+  $('btnFab').addEventListener('click', () => { modal.classList.remove('hidden'); document.body.style.overflow = 'hidden'; });
+  btnCloseModal.addEventListener('click', closeModal);
+  modalBackdrop.addEventListener('click', closeModal);
+  fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
+  cameraInput.addEventListener('change', e => handleFile(e.target.files[0]));
+  btnAnalyze.addEventListener('click', analyzeImage);
+}
+
+function closeModal() { modal.classList.add('hidden'); document.body.style.overflow = ''; }
+
+function handleFile(file) {
+  if (!file) return;
+  selectedFile = file;
+  imgPreview.src = URL.createObjectURL(file);
+  imgPreview.classList.remove('hidden');
+  dropHint.classList.add('hidden');
+  btnAnalyze.disabled = false;
+  analysisResult.innerHTML = '';
+}
+
+async function analyzeImage() {
+  if (!selectedFile) return;
+  if (!WORKER_URL) {
+    analysisResult.innerHTML = `<div class="warn-msg">⚠️ 圖片分析功能尚未啟用。<br>需要先設定 Cloudflare Worker，請聯繫管理員。</div>`;
+    return;
+  }
+  btnAnalyze.disabled = true;
+  analysisResult.innerHTML = `<div class="analyzing-msg"><div class="spinner"></div><p>AI 分析中...</p></div>`;
+  try {
+    const base64 = await toBase64(selectedFile);
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: [
+          { type: 'image', source: { type: 'base64', media_type: selectedFile.type || 'image/jpeg', data: base64 } },
+          { type: 'text', text: '這張圖片中包含藥品訂單或品項清單。請從圖片中識別所有藥品品項名稱，以JSON陣列格式回傳，只包含品名，不要包含數量、劑型或其他資訊。例如：["八正散", "八味地黃丸", "木香檳榔丸"]' }
+        ]}]
+      })
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error?.message || `HTTP ${res.status}`);
+    const text = data.content?.[0]?.text ?? '';
+    renderResults(parseNames(text));
+  } catch (e) {
+    analysisResult.innerHTML = `<div class="error-msg">❌ 辨識失敗：${esc(e.message)}</div>`;
+  } finally {
+    btnAnalyze.disabled = false;
+  }
+}
+
+function parseNames(text) {
+  try { const s = text.indexOf('['), e = text.lastIndexOf(']'); if (s >= 0 && e > s) return JSON.parse(text.slice(s, e+1)); } catch {}
+  return text.split('\n').map(l => l.trim().replace(/^[-*•·、\d.]+\s*/, '').trim()).filter(l => l.length > 1);
+}
+
+function renderResults(names) {
+  if (!names.length) { analysisResult.innerHTML = '<div class="warn-msg">⚠️ 未能辨識出藥品名稱，請換一張更清晰的圖片。</div>'; return; }
+  const found = [], notFound = [];
+  names.forEach(name => {
+    const match = allItems.find(i => i.name.includes(name) || name.includes(i.name));
+    if (match) found.push({ name, item: match }); else notFound.push(name);
+  });
+  let html = '';
+  if (found.length) {
+    html += `<div class="analysis-section-title">✅ 找到 ${found.length} 項</div>`;
+    html += found.map(({ item }) => {
+      const sc = getStockClass(item.stock) === 'stock-yes' ? 'yes' : getStockClass(item.stock) === 'stock-no' ? 'no' : '';
+      return `<div class="result-item found"><span class="result-check">✓</span><span class="result-name">${esc(item.name)}</span><span class="result-stock ${sc}">${esc(item.stock || '—')}</span></div>`;
+    }).join('');
+  }
+  if (notFound.length) {
+    html += `<div class="analysis-section-title">❌ 未找到 ${notFound.length} 項</div>`;
+    html += notFound.map(n => `<div class="result-item notfound"><span class="result-check">✗</span><span class="result-name">${esc(n)}</span></div>`).join('');
+  }
+  analysisResult.innerHTML = html;
+}
+
+function toBase64(file) {
+  return new Promise((ok, fail) => {
+    const r = new FileReader();
+    r.onload = e => ok(e.target.result.split(',')[1]);
+    r.onerror = fail; r.readAsDataURL(file);
+  });
+}
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+</script>
 </body>
 </html>
