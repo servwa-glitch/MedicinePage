@@ -36,7 +36,7 @@ export default {
           "agree": true,
           prompt: promptText,
           image: [...imgArray],
-          max_tokens: 2048          
+          max_tokens: 2048      //2048    
         });
 
         // 5. 將結果包裝成你前端需要的格式回傳 (data.content[0].text)
