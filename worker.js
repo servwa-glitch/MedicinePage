@@ -32,10 +32,10 @@ export default {
         // 提示詞使用你前端帶過來的指令
         const promptText = body.messages?.[0]?.content?.[1]?.text || "請識別圖中的藥品名稱";
         
-       const aiResponse = await env.AI.run('@cf/llava-hf/llava-1.5-7b-hf', {
+       const aiResponse = await env.AI.run('@cf/qwen/qwen2-vl-7b-instruct', {
           prompt: promptText,
           image: [...imgArray],
-          max_tokens: 1024
+          max_tokens: 2048 // 給予足夠的 Token 完整輸出藥材清單
         });
 
         // 5. 將結果包裝成你前端需要的格式回傳 (data.content[0].text)
