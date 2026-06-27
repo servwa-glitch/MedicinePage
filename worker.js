@@ -1,6 +1,5 @@
 export default {
   async fetch(request, env) {
-    // 處理跨域問題 (CORS)，讓你的 GitHub Pages 網站可以順利呼叫此 API
     const corsHeaders = {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -13,27 +12,54 @@ export default {
 
     if (request.method === "POST") {
       try {
-        // 1. 讀取前端傳過來的圖片二進位資料
-        const imageData = await request.arrayBuffer();
+        // 1. 解析前端傳來的 JSON 資料
+        const body = await request.json();
+        
+        // 2. 找到前端傳過來的 base64 圖片資料
+        const base64Data = body.messages?.[0]?.content?.[0]?.source?.data;
+        if (!base64Data) {
+          return new Response(JSON.stringify({ error: { message: "找不到圖片資料" } }), { status: 400, headers: corsHeaders });
+        }
 
-        // 2. 呼叫 Cloudflare 內建的圖像分類模型 (ResNet-50)
-        // 注意：稍後需在 Cloudflare 後台 Settings -> Variables 綁定 AI 變量
-        const response = await env.AI.run('@cf/microsoft/resnet-50', {
-          image: [...new Uint8Array(imageData)]
+        // 3. 將 base64 轉換為二進位陣列，供 Cloudflare AI 使用
+        const binaryString = atob(base64Data);
+        const imgArray = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          imgArray[i] = binaryString.charCodeAt(i);
+        }
+
+        // 4. 使用 Cloudflare 內建免費的視覺大模型 (Llama-3.2-11B 視覺版)
+        // 提示詞使用你前端帶過來的指令
+        const promptText = body.messages?.[0]?.content?.[1]?.text || "請識別圖中的藥品名稱";
+        
+        const aiResponse = await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', {
+          prompt: promptText,
+          image: [...imgArray],
+          max_tokens: 512
         });
 
-        // 3. 將 AI 辨識結果回傳給前端
-        return new Response(JSON.stringify(response), {
+        // 5. 將結果包裝成你前端需要的格式回傳 (data.content[0].text)
+        const responseData = {
+          content: [
+            {
+              type: "text",
+              text: aiResponse.response || aiResponse.text || ""
+            }
+          ]
+        };
+
+        return new Response(JSON.stringify(responseData), {
           headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
+
       } catch (error) {
-        return new Response(JSON.stringify({ error: error.toString() }), {
+        return new Response(JSON.stringify({ error: { message: error.toString() } }), {
           status: 500,
           headers: corsHeaders
         });
       }
     }
 
-    return new Response("請使用 POST 方法上傳圖片", { status: 400 });
+    return new Response("Method not allowed", { status: 405 });
   }
 };
