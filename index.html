@@ -739,31 +739,29 @@ function toBase64(file) {
     line = line.replace(/^[\s\d]*[.、,，\-\*・]\s*/, '').trim();
     if (!line) return null;
 
-    // Quantity patterns (order matters — try most specific first)
+    // Quantity patterns (order matters — most specific first)
     const patterns = [
-      /([x×\*＊Xx])\s*(\d+)\s*([包盒瓶粒顆帖袋罐份劑錠]?)/,  // x3, *3, x3包
-      /(\d+)\s*([x×\*＊Xx])/,                                    // 3x
-      /(\d+)\s*([包盒瓶粒顆帖袋罐份劑錠])/,                     // 3包
-      /\s+(\d+)$/,                                                 // trailing space+number
+      { re: /([x×\*＊Xx])\s*(\d+)\s*([包盒瓶粒顆帖袋罐份劑錠]?)/, dig: 2 }, // x3 *3 x3包
+      { re: /(\d+)\s*([x×\*＊Xx])/,                                  dig: 1 }, // 3x
+      { re: /(\d+)\s*([包盒瓶粒顆帖袋罐份劑錠])/,                    dig: 1 }, // 3包
+      { re: /\s+(\d+)$/,                                               dig: 1 }, // 藥名 3
+      { re: /(\d+)$/,                                                   dig: 1 }, // 藥名3 (no space/unit)
     ];
 
     let qty = null;
     let name = line;
 
-    for (const pat of patterns) {
-      const m = line.match(pat);
-      if (m) {
-        // pick the digit capture group
-        qty = m[2] && /\d/.test(m[2]) ? m[2] : m[1] && /\d/.test(m[1]) ? m[1] : null;
-        if (qty) {
-          name = line.replace(m[0], '').trim();
-          break;
-        }
+    for (const { re, dig } of patterns) {
+      const m = line.match(re);
+      if (m && m[dig]) {
+        qty = m[dig];
+        name = line.replace(m[0], '').trim();
+        break;
       }
     }
 
     // Clean up stray punctuation left in name
-    name = name.replace(/[x×\*＊Xx]+$/i, '').replace(/\s+/g, '').trim();
+    name = name.replace(/[x×\*＊Xx\d]+$/i, '').replace(/\s+/g, '').trim();
     if (!name) return null;
     return { name, qty };
   }
