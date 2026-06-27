@@ -26,6 +26,30 @@
   --search-h: 60px;
   --stats-h: 36px;
 }
+.paste-hint { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.5; }
+.paste-input {
+  width: 100%; height: 130px;
+  border: 1.5px solid var(--border); border-radius: 10px;
+  padding: 12px; font-size: 15px; font-family: inherit;
+  resize: vertical; outline: none; color: var(--text); background: var(--bg);
+  margin-bottom: 10px; display: block;
+}
+.paste-input:focus { border-color: var(--primary-light); }
+.copy-box-wrap { margin-top: 12px; }
+.copy-textarea {
+  width: 100%; min-height: 100px; max-height: 200px;
+  border: 1.5px solid var(--border); border-radius: 10px;
+  padding: 12px; font-size: 14px; font-family: inherit;
+  resize: none; outline: none; color: var(--text); background: #f8fafc;
+  margin-bottom: 8px; display: block;
+}
+.copy-result-btn {
+  width: 100%; height: 40px; border-radius: 10px;
+  background: var(--primary); color: #fff;
+  font-size: 14px; font-weight: 700; cursor: pointer; border: none;
+  transition: opacity .15s;
+}
+.copy-result-btn:active { opacity: .8; }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { height: 100%; }
 body {
@@ -267,12 +291,21 @@ ul { list-style: none; }
     <span class="header-icon">💊</span>
     <span class="header-title">藥品庫存查詢</span>
   </div>
-  <button id="btnRefresh" class="icon-btn" title="重新整理">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-      <path d="M3 3v5h5"/>
-    </svg>
-  </button>
+  <div style="display:flex;gap:4px">
+    <button id="btnPaste" class="icon-btn" title="貼上訊息查詢">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+        <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+        <line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/>
+      </svg>
+    </button>
+    <button id="btnRefresh" class="icon-btn" title="重新整理">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+        <path d="M3 3v5h5"/>
+      </svg>
+    </button>
+  </div>
 </header>
 
 <div class="search-section">
@@ -305,6 +338,33 @@ ul { list-style: none; }
     <polyline points="21 15 16 10 5 21"/>
   </svg>
 </button>
+
+<div id="pasteModal" class="modal hidden">
+  <div class="modal-backdrop" id="pasteModalBackdrop"></div>
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <h2 class="modal-title">📋 訊息查詢</h2>
+      <button id="btnClosePasteModal" class="close-btn">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="paste-hint">貼入 LINE 訊息，自動辨識藥品名稱與數量</p>
+      <textarea id="pasteInput" class="paste-input" placeholder="例：&#10;八正散3包&#10;八味地黃丸 2盒&#10;木香檳榔丸*5&#10;補中益氣湯 x3"></textarea>
+      <button id="btnPasteAnalyze" class="analyze-btn" style="margin-bottom:12px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        開始查詢
+      </button>
+      <div id="pasteResult"></div>
+      <div id="pasteCopyArea" class="copy-box-wrap hidden">
+        <div class="analysis-section-title">📋 複製結果（僅有庫存項目）</div>
+        <textarea id="copyTextarea" class="copy-textarea" readonly></textarea>
+        <button id="btnCopyResult" class="copy-result-btn">複製</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <div id="modal" class="modal hidden">
   <div class="modal-backdrop" id="modalBackdrop"></div>
@@ -636,6 +696,146 @@ function toBase64(file) {
     r.onerror = fail; r.readAsDataURL(file);
   });
 }
+// ── Paste modal ───────────────────────────────────────────────
+(function() {
+  const pasteModal        = $('pasteModal');
+  const pasteModalBackdrop= $('pasteModalBackdrop');
+  const btnClosePasteModal= $('btnClosePasteModal');
+  const pasteInput        = $('pasteInput');
+  const btnPasteAnalyze   = $('btnPasteAnalyze');
+  const pasteResult       = $('pasteResult');
+  const pasteCopyArea     = $('pasteCopyArea');
+  const copyTextarea      = $('copyTextarea');
+  const btnCopyResult     = $('btnCopyResult');
+
+  $('btnPaste').addEventListener('click', open);
+  btnClosePasteModal.addEventListener('click', close);
+  pasteModalBackdrop.addEventListener('click', close);
+  btnPasteAnalyze.addEventListener('click', run);
+  btnCopyResult.addEventListener('click', () => {
+    copyTextarea.select();
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(copyTextarea.value).catch(() => {});
+    } else {
+      document.execCommand('copy');
+    }
+    btnCopyResult.textContent = '✓ 已複製！';
+    setTimeout(() => { btnCopyResult.textContent = '複製'; }, 1800);
+  });
+
+  function open() {
+    pasteModal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => pasteInput.focus(), 100);
+  }
+  function close() {
+    pasteModal.classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+
+  // Extract (name, qty) from a single line
+  function parseLine(line) {
+    // Remove leading list markers like 1. 1、・- *
+    line = line.replace(/^[\s\d]*[.、,，\-\*・]\s*/, '').trim();
+    if (!line) return null;
+
+    // Quantity patterns (order matters — try most specific first)
+    const patterns = [
+      /([x×\*＊Xx])\s*(\d+)\s*([包盒瓶粒顆帖袋罐份劑錠]?)/,  // x3, *3, x3包
+      /(\d+)\s*([x×\*＊Xx])/,                                    // 3x
+      /(\d+)\s*([包盒瓶粒顆帖袋罐份劑錠])/,                     // 3包
+      /\s+(\d+)$/,                                                 // trailing space+number
+    ];
+
+    let qty = null;
+    let name = line;
+
+    for (const pat of patterns) {
+      const m = line.match(pat);
+      if (m) {
+        // pick the digit capture group
+        qty = m[2] && /\d/.test(m[2]) ? m[2] : m[1] && /\d/.test(m[1]) ? m[1] : null;
+        if (qty) {
+          name = line.replace(m[0], '').trim();
+          break;
+        }
+      }
+    }
+
+    // Clean up stray punctuation left in name
+    name = name.replace(/[x×\*＊Xx]+$/i, '').replace(/\s+/g, '').trim();
+    if (!name) return null;
+    return { name, qty };
+  }
+
+  function run() {
+    const text = pasteInput.value.trim();
+    if (!text) return;
+
+    if (!allItems.length) {
+      pasteResult.innerHTML = '<div class="warn-msg">⚠️ 藥品資料尚未載入，請稍後再試。</div>';
+      return;
+    }
+
+    const lines = text.split(/[\n]+/).map(l => l.trim()).filter(l => l.length > 0);
+    const parsed = lines.map(parseLine).filter(Boolean);
+
+    if (!parsed.length) {
+      pasteResult.innerHTML = '<div class="warn-msg">⚠️ 未能解析出任何品項，請確認格式。</div>';
+      return;
+    }
+
+    // Match each parsed name against inventory
+    const results = parsed.map(({ name, qty }) => {
+      const matched = allItems.find(item =>
+        item.name.includes(name) || name.includes(item.name)
+      );
+      return { name, qty, matched };
+    });
+
+    const found    = results.filter(r => r.matched);
+    const notFound = results.filter(r => !r.matched);
+
+    let html = '';
+    if (found.length) {
+      html += `<div class="analysis-section-title">✅ 找到 ${found.length} 項</div>`;
+      html += found.map(r => {
+        const sc = getStockClass(r.matched.stock);
+        const stockCls = sc === 'stock-yes' ? 'yes' : sc === 'stock-no' ? 'no' : '';
+        const qtyText  = r.qty ? ` <span style="color:var(--text-muted)">× ${esc(r.qty)}</span>` : '';
+        return `<div class="result-item found">
+          <span class="result-check">✓</span>
+          <div class="result-name">${esc(r.matched.name)}${qtyText}</div>
+          <span class="result-stock ${stockCls}">${esc(r.matched.stock || '—')}</span>
+        </div>`;
+      }).join('');
+    }
+    if (notFound.length) {
+      html += `<div class="analysis-section-title">❌ 找不到 ${notFound.length} 項</div>`;
+      html += notFound.map(r => `<div class="result-item notfound">
+        <span class="result-check">✗</span>
+        <div class="result-name">${esc(r.name)}</div>
+      </div>`).join('');
+    }
+    pasteResult.innerHTML = html;
+
+    // Build copyable text — only items with stock (有)
+    const inStockRows = found.filter(r => getStockClass(r.matched.stock) === 'stock-yes');
+    if (inStockRows.length) {
+      copyTextarea.value = inStockRows.map(r => {
+        const qty = r.qty ? ` x${r.qty}` : '';
+        return `${r.matched.name}${qty}`;
+      }).join('\n');
+      pasteCopyArea.classList.remove('hidden');
+    } else {
+      pasteCopyArea.classList.add('hidden');
+      if (found.length) {
+        pasteResult.innerHTML += '<div class="warn-msg" style="margin-top:8px">⚠️ 找到的品項目前均無庫存。</div>';
+      }
+    }
+  }
+})();
+
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function escRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
 </script>
