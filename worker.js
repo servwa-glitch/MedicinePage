@@ -33,10 +33,10 @@ export default {
         const promptText = body.messages?.[0]?.content?.[1]?.text || "請識別圖中的藥品名稱";
         
         const aiResponse = await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', {
+          "agree": true,
           prompt: promptText,
           image: [...imgArray],
-          max_tokens: 2048,
-          "agree": true
+          max_tokens: 2048          
         });
 
         // 5. 將結果包裝成你前端需要的格式回傳 (data.content[0].text)
