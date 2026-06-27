@@ -32,11 +32,22 @@ export default {
         // 提示詞使用你前端帶過來的指令
         const promptText = body.messages?.[0]?.content?.[1]?.text || "請識別圖中的藥品名稱";
         
-       const aiResponse = await env.AI.run('@cf/qwen/qwen2-vl-7b-instruct', {
-          prompt: promptText,
-          image: [...imgArray],
-          max_tokens: 2048 // 給予足夠的 Token 完整輸出藥材清單
-        });
+       // 使用官方正統三參數寫法，將 agree 放在 options 物件中送出
+        const aiResponse = await env.AI.run(
+          '@cf/meta/llama-3.2-11b-vision-instruct', 
+          {
+            prompt: promptText,
+            image: [...imgArray],
+            max_tokens: 2048
+          },
+          {
+            headers: {
+              "Authorization": "Bearer " + (env.AI_TOKEN || "") // 保留備用，一般免費版留空或不用帶
+            },
+            // 💡 關鍵就在這裡：授權條款必須獨立放在第三個參數物件裡！
+            "agree": true 
+          }
+        );
 
         // 5. 將結果包裝成你前端需要的格式回傳 (data.content[0].text)
         const responseData = {
