@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>藥品庫存查詢</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <span class="header-icon">💊</span>
+      <span class="header-title">藥品庫存查詢</span>
+    </div>
+    <button id="btnRefresh" class="icon-btn" title="重新整理">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+        <path d="M3 3v5h5"/>
+      </svg>
+    </button>
+  </header>
+
+  <!-- Search Bar -->
+  <div class="search-section">
+    <div class="search-box">
+      <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+      </svg>
+      <input type="text" id="searchInput" placeholder="搜尋藥品名稱..." autocomplete="off" autocorrect="off" spellcheck="false">
+      <button id="btnClear" class="clear-btn hidden">✕</button>
+    </div>
+    <div id="suggestions" class="suggestions hidden"></div>
+  </div>
+
+  <!-- Stats -->
+  <div id="statsBar" class="stats-bar">
+    <span id="statsText">載入中...</span>
+  </div>
+
+  <!-- Main content -->
+  <main class="content" id="content">
+    <div id="loadingState" class="center-state">
+      <div class="spinner"></div>
+      <p>載入資料中...</p>
+    </div>
+    <div id="emptyState" class="center-state hidden">
+      <div class="empty-icon">🔍</div>
+      <p>找不到符合的藥品</p>
+    </div>
+    <ul id="itemList" class="item-list hidden"></ul>
+  </main>
+
+  <!-- FAB: Image Analysis -->
+  <button id="btnFab" class="fab" title="圖片查詢">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+      <circle cx="8.5" cy="8.5" r="1.5"/>
+      <polyline points="21 15 16 10 5 21"/>
+    </svg>
+  </button>
+
+  <!-- Image Analysis Modal -->
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-backdrop" id="modalBackdrop"></div>
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <h2 class="modal-title">📷 圖片查詢</h2>
+        <button id="btnCloseModal" class="close-btn">✕</button>
+      </div>
+      <div class="modal-body">
+        <!-- Image Preview -->
+        <div id="dropZone" class="drop-zone">
+          <div id="dropHint" class="drop-hint">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+            <p>點選下方按鈕上傳圖片</p>
+          </div>
+          <img id="imgPreview" class="img-preview hidden" alt="預覽">
+        </div>
+
+        <!-- Upload Buttons -->
+        <div class="upload-row">
+          <input type="file" id="fileInput" accept="image/*" class="hidden">
+          <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
+          <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            選擇圖片
+          </button>
+          <button class="upload-btn" onclick="document.getElementById('cameraInput').click()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
+            拍照
+          </button>
+          <button id="btnAnalyze" class="analyze-btn" disabled>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/>
+            </svg>
+            分析圖片
+          </button>
+        </div>
+
+        <!-- Analysis Result -->
+        <div id="analysisResult" class="analysis-result hidden"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
