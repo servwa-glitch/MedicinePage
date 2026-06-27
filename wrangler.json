@@ -1,0 +1,8 @@
+{
+  "name": "medicinepage",
+  "main": "worker.js",
+  "compatibility_date": "2026-06-27",
+  "ai": {
+    "binding": "AI"
+  }
+}
